@@ -2,7 +2,7 @@
 
   "dependencies": {
 
-    "@tensorflow/tfjs-node-gpu": "^4.10.0",
+    "@tensorflow/tfjs-node-gpu": "^4.20.0",
 
     "@vladmandic/face-api": "^1.7.13",
 
@@ -37,8 +37,6 @@
     "path": "^0.12.7",
 
     "process": "^0.11.10",
-
-    "sharp": "^0.33.3",
 
     "winston": "^3.11.0"
 
