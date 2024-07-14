@@ -366,7 +366,6 @@ async function delete_face(req, res) {
 }
 
 async function edit_face(req, res) {
-
   const { id, name, position, status } = req.body;
 
   if (!id || !name || !position || !status) {
@@ -386,23 +385,37 @@ async function edit_face(req, res) {
         return res.status(404).json({ message: 'Employee not found' });
       }
 
-      // Set the current timestamp
-      const currentTime = new Date();
-      const imageFilename = `${name.replace(/\s+/g, '_')}.jpg`;
-      // Update employee details in the database
-      const updateQuery = `
-        UPDATE moiapp_employee
-        SET name = ?, position = ?, status = ?, image = ?, time = ?
-        WHERE id = ?
-      `;
-      db.query(updateQuery, [name, position, status,imageFilename, currentTime, id], (err, result) => {
+      // Check if the name already exists
+      const nameCheckQuery = `SELECT COUNT(*) as count FROM moiapp_employee WHERE name = ? AND id != ?`;
+      db.query(nameCheckQuery, [name, id], (err, result) => {
         if (err) {
-          console.error('Error updating employee details:', err);
+          console.error('Error checking existing name:', err);
           return res.status(500).json({ message: 'Internal server error' });
         }
 
-        console.log('Employee details updated successfully:', result);
-        return res.status(200).json({ message: 'Employee details updated successfully' });
+        if (result[0].count > 0) {
+          return res.status(400).json({ message: 'Employee name already exists' });
+        }
+
+        // Set the current timestamp
+        const currentTime = new Date();
+        const imageFilename = `${name.replace(/\s+/g, '_')}.jpg`;
+        
+        // Update employee details in the database
+        const updateQuery = `
+          UPDATE moiapp_employee
+          SET name = ?, position = ?, status = ?, image = ?, time = ?
+          WHERE id = ?
+        `;
+        db.query(updateQuery, [name, position, status, imageFilename, currentTime, id], (err, result) => {
+          if (err) {
+            console.error('Error updating employee details:', err);
+            return res.status(500).json({ message: 'Internal server error' });
+          }
+
+          console.log('Employee details updated successfully:', result);
+          return res.status(200).json({ message: 'Employee details updated successfully' });
+        });
       });
     });
   } catch (error) {
@@ -411,6 +424,7 @@ async function edit_face(req, res) {
     res.status(500).send('Internal server error');
   }
 }
+
 
 // .... Face Recognition .... //
 async function face_recog(img, faceMatch) { // gpu
