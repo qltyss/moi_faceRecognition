@@ -476,3 +476,4 @@ error: Error during server setup: ENOENT, No such file or directory './labeled_i
 error: Error during server setup: ENOENT, No such file or directory './labeled_images/7/0.jpg'
 error: Error during server setup: ENOENT, No such file or directory './labeled_images/8/0.jpg'
 error: Error during server setup: ENOENT, No such file or directory './labeled_images/9/0.jpg'
+error: Error during server setup: Face not detected for 1721035472147/3
