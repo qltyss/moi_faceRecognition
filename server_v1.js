@@ -444,7 +444,7 @@ async function face_recog(img, faceMatch) { // gpu
       // Return the ID of the first matched result
       return matches.length > 0 ? matches[0].id : 'unknown';
     }
-    return 'noface';
+    return 0;
   } catch (err) {
     console.error('Caught error', err.message);
     logger.error(`Error during face recognition: ${err.message}`);
