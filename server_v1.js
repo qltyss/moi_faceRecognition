@@ -297,6 +297,7 @@ async function handle_face_recognition(req, res) {
 
 async function delete_face(req, res) {
   const id = req.body.id;
+  
   try {
     // Check if the employee exists
     const checkQuery = `SELECT name FROM moiapp_employee WHERE id = ?`;
@@ -307,7 +308,7 @@ async function delete_face(req, res) {
       }
 
       if (result.length === 0) {
-        return res.status(404).json({ message: 'Employee not found' });
+        return res.status(200).json({ message: 'Employee not found' });
       }
 
       const employeeName = result[0].name;
@@ -369,7 +370,7 @@ async function edit_face(req, res) {
   const { id, name, position, status } = req.body;
 
   if (!id || !name || !position || !status) {
-    return res.status(400).send('Invalid input: id, name, position, and status are required.');
+    return res.status(200).json({message:'invalid input'});
   }
 
   try {
@@ -382,7 +383,7 @@ async function edit_face(req, res) {
       }
 
       if (result[0].count === 0) {
-        return res.status(404).json({ message: 'Employee not found' });
+        return res.status(200).json({ message: 'Employee not found' });
       }
 
       // Check if the name already exists
@@ -393,9 +394,9 @@ async function edit_face(req, res) {
           return res.status(500).json({ message: 'Internal server error' });
         }
 
-        if (result[0].count > 0) {
-          return res.status(400).json({ message: 'Employee name already exists' });
-        }
+          if (result[0].count > 0) {
+            return res.status(200).json({ message: 'Employee name already exists' });
+          }
 
         // Set the current timestamp
         const currentTime = new Date();
