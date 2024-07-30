@@ -94,7 +94,7 @@ async function loadFaceDescriptor(label, index) { // gpu
     const tensorImage = await loadImageAndConvertToTensor(imgPath);
 
     if (!tensorImage) {
-      throw new Error(`Failed to load image for ${label}/${index}`);
+      throw new Error(`Failed to load image or detect face for ${label}/${index}`);
     }
 
     const detection = await faceapi.detectSingleFace(tensorImage).withFaceLandmarks().withFaceDescriptor();
@@ -167,115 +167,12 @@ async function setupServer() {
   }
 }
 
-// async function handle_new_face(req, res) {
-//   try {
-//     const { name, images, status, position } = req.body;
-
-//     if (!name || !images || !status || !position || images.length === 0) {
-//       return res.status(400).send('Invalid input: name, status, position and images are required.');
-//     }
-
-//     // Check if the name already exists in the database
-//     const checkQuery = `SELECT COUNT(*) as count FROM moiapp_employee WHERE name = ?`;
-//     db.query(checkQuery, [name], async (err, result) => {
-//       if (err) {
-//         console.error('Error checking existing name:', err);
-//         return res.status(500).json({ message: 'Internal server error' });
-//       }
-
-//       if (result[0].count > 0) {
-//         return res.status(409).json({ message: 'Name already exists' });
-//       }
-
-//       // Create a unique ID using the current timestamp
-//       const id = Date.now().toString();
-
-//       // Create a directory for the user if it doesn't already exist
-//       const dirPath = path.join(__dirname, 'labeled_images', id);
-//       await fs_promise.mkdir(dirPath, { recursive: true }).catch(err => {
-//         if (err.code !== 'EEXIST') throw err; // Only throw if error is not because directory already exists
-//       });
-
-//       // Process each image
-//       await Promise.all(images.map(async (base64Image, index) => {
-//         if (!/^data:image\/(jpg|jpeg|png);base64,/.test(base64Image)) {
-//           throw new Error(`Invalid image data format for image ${index}`);
-//         }
-
-//         const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
-//         const imgBuffer = Buffer.from(base64Data, 'base64');
-
-//         // Save the image with the index as the filename
-//         await sharp(imgBuffer)
-//           .jpeg({ quality: 90 })
-//           .toFile(path.join(dirPath, `${index}.jpeg`));
-//       }));
-
-//       // Load existing descriptors or initialize new object
-//       const jsonFilePath = path.join(__dirname, 'label_info/labeledImages.json');
-
-//       let dictionary = [];
-
-//       try {
-//         // Read existing descriptors
-//         const data = await fs_promise.readFile(jsonFilePath, 'utf8');
-//         dictionary = JSON.parse(data);
-//       } catch (error) {
-//         if (error.code !== 'ENOENT') throw error; // Ignore error if file does not exist, otherwise throw
-//       }
-
-//       // Append or update the new label and descriptors
-//       const labeledDescriptors = await loadLabeledImages([id]);
-
-//       dictionary.push(...labeledDescriptors);
-
-//       // Write the updated labeled data back to the JSON file
-//       await fs_promise.writeFile(jsonFilePath, JSON.stringify(dictionary, null, 2));
-
-//       console.log('JSON data saved successfully!');
-
-//       // Update or add new label info
-//       const data = await fs_promise.readFile(jsonFilePath, 'utf8');
-//       const descriptorsJson = JSON.parse(data);
-//       const labeledDescriptor = descriptorsJson.map(ld => {
-//         const descriptors = ld.descriptors.map(d => new Float32Array(d));
-//         return new faceapi.LabeledFaceDescriptors(ld.label, descriptors);
-//       });
-
-//       faceMatcher = new faceapi.FaceMatcher(labeledDescriptor, distanceThreshold);
-//       console.log('Loaded descriptors from JSON.');
-
-//       // Save new face information to the database
-//       const imageFilename = `${name.replace(/\s+/g, '_')}.jpg`;
-//       const query = `
-//         INSERT INTO moiapp_employee (id, name, position, status, image, time)
-//         VALUES (?, ?, ?, ?, ?, NOW())
-//       `;
-//       db.query(query, [id, name, position, status, imageFilename], (err, result) => {
-//         if (err) {
-//           console.error('Error saving new face to database:', err);
-//           return res.status(500).json({ message: 'Internal server error' });
-//         }
-
-//         console.log('New face information saved to database:', result);
-//         return res.status(200).json({ message: 'New face added successfully', id: id });
-//       });
-
-//     });
-
-//   } catch (error) {
-//     console.error('Error handling new face:', error);
-//     logger.error(`Error handling new face: ${error.message}`);
-//     res.status(500).send('Internal server error');
-//   }
-// }
-
 async function handle_new_face(req, res) {
   try {
-    const { name, images, status, position } = req.body;
+    const { name, images, status, position, numplate } = req.body;
 
-    if (!name || !images || !status || !position || images.length === 0) {
-      return res.status(400).send('Invalid input: name, status, position and images are required.');
+    if (!name || !images || !status || !position || !numplate || images.length === 0) {
+      return res.status(200).send('invalid input');
     }
 
     // Check if the name already exists in the database
@@ -328,45 +225,42 @@ async function handle_new_face(req, res) {
       }
 
       // Append or update the new label and descriptors
-      try {
-        const labeledDescriptors = await loadLabeledImages([id]);
-        dictionary.push(...labeledDescriptors);
+      const labeledDescriptors = await loadLabeledImages([id]);
 
-        // Write the updated labeled data back to the JSON file
-        await fs_promise.writeFile(jsonFilePath, JSON.stringify(dictionary, null, 2));
+      dictionary.push(...labeledDescriptors);
 
-        console.log('JSON data saved successfully!');
+      // Write the updated labeled data back to the JSON file
+      await fs_promise.writeFile(jsonFilePath, JSON.stringify(dictionary, null, 2));
 
-        // Update or add new label info
-        const data = await fs_promise.readFile(jsonFilePath, 'utf8');
-        const descriptorsJson = JSON.parse(data);
-        const labeledDescriptor = descriptorsJson.map(ld => {
-          const descriptors = ld.descriptors.map(d => new Float32Array(d));
-          return new faceapi.LabeledFaceDescriptors(ld.label, descriptors);
-        });
+      console.log('JSON data saved successfully!');
 
-        faceMatcher = new faceapi.FaceMatcher(labeledDescriptor, distanceThreshold);
-        console.log('Loaded descriptors from JSON.');
+      // Update or add new label info
+      const data = await fs_promise.readFile(jsonFilePath, 'utf8');
+      const descriptorsJson = JSON.parse(data);
+      const labeledDescriptor = descriptorsJson.map(ld => {
+        const descriptors = ld.descriptors.map(d => new Float32Array(d));
+        return new faceapi.LabeledFaceDescriptors(ld.label, descriptors);
+      });
 
-        // Save new face information to the database
-        const imageFilename = `${name.replace(/\s+/g, '_')}.jpg`;
-        const query = `
-          INSERT INTO moiapp_employee (id, name, position, status, image, time)
-          VALUES (?, ?, ?, ?, ?, NOW())
-        `;
-        db.query(query, [id, name, position, status, imageFilename], (err, result) => {
-          if (err) {
-            console.error('Error saving new face to database:', err);
-            return res.status(500).json({ message: 'Internal server error' });
-          }
+      faceMatcher = new faceapi.FaceMatcher(labeledDescriptor, distanceThreshold);
+      console.log('Loaded descriptors from JSON.');
 
-          console.log('New face information saved to database:', result);
-          return res.status(200).json({ message: 'New face added successfully', id: id });
-        });
-      } catch (error) {
-        console.error('Error loading labeled images:', error);
-        return res.status(500).json({ message: `Error: ${error.message}` });
-      }
+      // Save new face information to the database
+      const imageFilename = `${name.replace(/\s+/g, '_')}.jpg`;
+      const query = `
+        INSERT INTO moiapp_employee (id, name, position, status, numplate, image, time)
+        VALUES (?, ?, ?, ?, ?, ?, NOW())
+      `;
+      db.query(query, [id, name, position, status, numplate, imageFilename], (err, result) => {
+        if (err) {
+          console.error('Error saving new face to database:', err);
+          return res.status(500).json({ message: 'Internal server error' });
+        }
+
+        console.log('New face information saved to database:', result);
+        return res.status(200).json({ message: 'New face added successfully', id: id });
+      });
+
     });
 
   } catch (error) {
@@ -375,6 +269,7 @@ async function handle_new_face(req, res) {
     res.status(500).send('Internal server error');
   }
 }
+
 
 async function handle_face_recognition(req, res) {
   try {
@@ -472,9 +367,9 @@ async function delete_face(req, res) {
 }
 
 async function edit_face(req, res) {
-  const { id, name, position, status } = req.body;
+  const { id, name, position, status, numplate } = req.body;
 
-  if (!id || !name || !position || !status) {
+  if (!id || !name || !position || !status || !numplate) {
     return res.status(200).json({message:'invalid input'});
   }
 
@@ -499,21 +394,21 @@ async function edit_face(req, res) {
           return res.status(500).json({ message: 'Internal server error' });
         }
 
-          if (result[0].count > 0) {
-            return res.status(200).json({ message: 'Employee name already exists' });
-          }
+        if (result[0].count > 0) {
+          return res.status(200).json({ message: 'Employee name already exists' });
+        }
 
         // Set the current timestamp
         const currentTime = new Date();
         const imageFilename = `${name.replace(/\s+/g, '_')}.jpg`;
-        
+
         // Update employee details in the database
         const updateQuery = `
           UPDATE moiapp_employee
-          SET name = ?, position = ?, status = ?, image = ?, time = ?
+          SET name = ?, position = ?, status = ?, numplate = ?, image = ?, time = ?
           WHERE id = ?
         `;
-        db.query(updateQuery, [name, position, status, imageFilename, currentTime, id], (err, result) => {
+        db.query(updateQuery, [name, position, status, numplate, imageFilename, currentTime, id], (err, result) => {
           if (err) {
             console.error('Error updating employee details:', err);
             return res.status(500).json({ message: 'Internal server error' });
@@ -550,7 +445,7 @@ async function face_recog(img, faceMatch) { // gpu
       // Return the ID of the first matched result
       return matches.length > 0 ? matches[0].id : 'unknown';
     }
-    return 0;
+    return 'noface';
   } catch (err) {
     console.error('Caught error', err.message);
     logger.error(`Error during face recognition: ${err.message}`);
